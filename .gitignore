@@ -1,0 +1,8 @@
+.idea
+wandb
+log
+data
+weights
+__pycache__
+memo.txt
+DiT
