@@ -97,7 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint',type=bool, default=False)
     parser.add_argument('--checkpoint_epoch', type=int, default=0)
     parser.add_argument('--save_n_model', type=int, default=500)
-    parser.add_argument('--val_step_num', type=int, default=1)  # 何epochごとにvalidationを行うか
+    parser.add_argument('--val_step_num', type=int, default=50)  # 何epochごとにvalidationを行うか
     parser.add_argument('--latent_sample', type=str, default='sample') # mean or sample
     
     # wandbの設定
