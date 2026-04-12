@@ -2,7 +2,9 @@ import torch
 
 
 def create_model(args):
-    if args.model_name =="ssdim":
+    # if args.model_name =="ssdim":
+    # ssdimが名前に入ってる場合
+    if "ssdim" in args.model_name:
         from models.ssdit_mamba import SSDiM, Model_Size
         # from models.ssdit import SSDiT, Model_Size
         model_config = Model_Size[args.model_size]
@@ -47,7 +49,8 @@ def create_model(args):
         del dummy_x, dummy_t, dummy_cond, out
         torch.cuda.empty_cache()
         
-    elif args.model_name =="ssdit":
+    # elif args.model_name =="ssdit":
+    elif "ssdit" in args.model_name:
         from models.ssdit import SSDiT, Model_Size
         # from models.ssdit import SSDiT, Model_Size
         model_config = Model_Size[args.model_size]
