@@ -3,10 +3,10 @@ import torch
 
 def create_model(args):
     if args.model_name =="ssdim":
-        from models.ssdit_mamba import SSDiT, Model_Size
+        from models.ssdit_mamba import SSDiM, Model_Size
         # from models.ssdit import SSDiT, Model_Size
         model_config = Model_Size[args.model_size]
-        model = SSDiT(
+        model = SSDiM(
             input_size       =args.latent_size,         # 32
             patch_size       =args.patch_size,          # 2
             in_channels      =args.latent_dim,          # 4
@@ -19,6 +19,34 @@ def create_model(args):
             cross_attn_flag  =args.cross_attn_flag,     # False
             shared_step      =args.shared_step,         # False
             )
+        
+        # モデルのパラメータ数計測
+        num_params = sum(p.numel() for p in model.parameters())
+        print(f"Model {args.model_name} has {num_params/1e6:.2f} million parameters.")
+        # def forward(self, x, t, conditioned_image):
+
+        
+        
+        # 学習時のGPUメモリ使用量の計測
+        from torch.cuda import memory_allocated, max_memory_allocated
+        model.to('cuda')
+        dummy_x = torch.randn(1, args.latent_dim, args.latent_size, args.latent_size).to('cuda')
+        dummy_t = torch.tensor([0]).to('cuda')  # ダミーの
+        dummy_cond = torch.randn(1, args.img_channels, args.img_size, args.img_size).to('cuda')
+        
+        # 学習時
+        out = model(dummy_x, dummy_t, dummy_cond)
+        train_memory = max_memory_allocated() / 1e9  # GB単位に変換
+        print(f"Model {args.model_name} uses {train_memory:.2f} GB of GPU memory during training.")
+        # 推論時のメモリ使用量の計測
+        with torch.no_grad():
+            out = model(dummy_x, dummy_t, dummy_cond)
+        inference_memory = max_memory_allocated() / 1e9  # GB単位
+        print(f"Model {args.model_name} uses {inference_memory:.2f} GB of GPU memory during inference.")
+        # メモリ解放
+        del dummy_x, dummy_t, dummy_cond, out
+        torch.cuda.empty_cache()
+        
     elif args.model_name =="ssdit":
         from models.ssdit import SSDiT, Model_Size
         # from models.ssdit import SSDiT, Model_Size

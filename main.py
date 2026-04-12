@@ -115,7 +115,7 @@ if __name__ == '__main__':
     L:  {"hidden_size": 1024, "depth": 24, "num_heads": 16}
     XL: {"hidden_size": 1152, "depth": 28, "num_heads": 16}
     """
-    parser.add_argument('--cond', type=str, default='ssdit')
+    parser.add_argument('--cond', type=str, default='ssdim')
     parser.add_argument('--patch_size', type=int, default=2)     # 2, 4, 8
     parser.add_argument('--model_size', type=str, default='S', choices=['XS', 'S', 'B', 'L', 'XL'])
     parser.add_argument('--unet_hidden_size', type=int, default=64)     # U-Netのデフォルトの隠れ層のサイズ

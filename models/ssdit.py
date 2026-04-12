@@ -517,52 +517,52 @@ def reverse_permut_np(permutation):
         reverse[permutation[i]] = i
     return reverse
 
-from mamba_ssm import Mamba
-cuda = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-x = torch.randn(1,4,32,32).to(cuda)
+# from mamba_ssm import Mamba
+# cuda = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# x = torch.randn(1,4,32,32).to(cuda)
 
-scan_type="zigzagN8"
-zigzag_num = int(scan_type.replace("zigzagN", ""))
-img_dim = 32
-patch_size = 8
-num_patches = (img_dim // patch_size) ** 2
-patch_side_len = int(math.sqrt(num_patches))
+# scan_type="zigzagN8"
+# zigzag_num = int(scan_type.replace("zigzagN", ""))
+# img_dim = 32
+# patch_size = 8
+# num_patches = (img_dim // patch_size) ** 2
+# patch_side_len = int(math.sqrt(num_patches))
 
-if scan_type.startswith("zigzagN") or scan_type.startswith("parallelN"):
-    _zz_paths = zigzag_path(N=patch_side_len)
-    if scan_type.startswith("zigzagN"):
-        zigzag_num = int(scan_type.replace("zigzagN", ""))
-        zz_paths = _zz_paths[:zigzag_num]
-        assert (
-            len(zz_paths) == zigzag_num
-            ), f"{len(zz_paths)} != {zigzag_num}"
-    elif scan_type.startswith("parallelN"):
-        zz_paths = _zz_paths[:8]
+# if scan_type.startswith("zigzagN") or scan_type.startswith("parallelN"):
+#     _zz_paths = zigzag_path(N=patch_side_len)
+#     if scan_type.startswith("zigzagN"):
+#         zigzag_num = int(scan_type.replace("zigzagN", ""))
+#         zz_paths = _zz_paths[:zigzag_num]
+#         assert (
+#             len(zz_paths) == zigzag_num
+#             ), f"{len(zz_paths)} != {zigzag_num}"
+#     elif scan_type.startswith("parallelN"):
+#         zz_paths = _zz_paths[:8]
         
-zz_paths_rev = [reverse_permut_np(_) for _ in zz_paths]
+# zz_paths_rev = [reverse_permut_np(_) for _ in zz_paths]
 
-# torch テンソルに変換（depth 分リピートは不要 ─ 1ブロックなので）
-zz_paths_t     = [torch.from_numpy(p).long().to(cuda) for p in zz_paths]
-zz_paths_rev_t = [torch.from_numpy(p).long().to(cuda) for p in zz_paths_rev]
+# # torch テンソルに変換（depth 分リピートは不要 ─ 1ブロックなので）
+# zz_paths_t     = [torch.from_numpy(p).long().to(cuda) for p in zz_paths]
+# zz_paths_rev_t = [torch.from_numpy(p).long().to(cuda) for p in zz_paths_rev]
 
 
-# ── Step1: パッチ埋め込み ──────────────────────
-print(x.shape)
-patch_embed = nn.Conv2d(4, 64, kernel_size=patch_size, stride=patch_size).to(cuda)
-x_seq = rearrange(patch_embed(x), "b d h w -> b (h w) d")
-print(f"Patch Embedded Shape: {x_seq.shape}")  # (1, 256, 64)
+# # ── Step1: パッチ埋め込み ──────────────────────
+# print(x.shape)
+# patch_embed = nn.Conv2d(4, 64, kernel_size=patch_size, stride=patch_size).to(cuda)
+# x_seq = rearrange(patch_embed(x), "b d h w -> b (h w) d")
+# print(f"Patch Embedded Shape: {x_seq.shape}")  # (1, 256, 64)
 
-# ── Step3: Mamba ──────────────────────────────
-mamba = Mamba(d_model=64, d_state=16, d_conv=4, expand=2).to(cuda)
-attn  = Attention(64, num_heads=8).to(cuda)
-# ── Step4: 8方向スキャン ──────────────────────
-out = torch.zeros_like(x_seq)
+# # ── Step3: Mamba ──────────────────────────────
+# mamba = Mamba(d_model=64, d_state=16, d_conv=4, expand=2).to(cuda)
+# attn  = Attention(64, num_heads=8).to(cuda)
+# # ── Step4: 8方向スキャン ──────────────────────
+# out = torch.zeros_like(x_seq)
 
-for path, path_rev in zip(zz_paths_t, zz_paths_rev_t):
-    x_perm   = x_seq[:, path, :]        # zigzag 順に並び替え
-    print(f"Permuted Shape: {x_perm.shape}")  # (1, 256, 10)
-    y        = mamba(x_perm)            # Mamba forward
-    out     += y[:, path_rev, :]        # 元の空間順に戻して加算
+# for path, path_rev in zip(zz_paths_t, zz_paths_rev_t):
+#     x_perm   = x_seq[:, path, :]        # zigzag 順に並び替え
+#     print(f"Permuted Shape: {x_perm.shape}")  # (1, 256, 10)
+#     y        = mamba(x_perm)            # Mamba forward
+#     out     += y[:, path_rev, :]        # 元の空間順に戻して加算
     
 
 # メモリ使用量を比較(Mamba vs Attention)

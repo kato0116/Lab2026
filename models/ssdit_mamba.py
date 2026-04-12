@@ -7,6 +7,7 @@ from torch import nn
 from models.modules import CrossAttention
 from models.mamba_utils import zigzag_path, reverse_permut_np
 from models.ssdit import SSDiTBlock
+from mamba_ssm import Mamba
 
 def zero_module(module):
     """
@@ -212,7 +213,7 @@ class FinalLayer(nn.Module):
         x = self.linear(x)
         return x
 
-class SSDiT(nn.Module):
+class SSDiM(nn.Module):
     """
     Diffusion model with a Transformer backbone.
     """
