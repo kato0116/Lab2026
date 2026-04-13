@@ -348,7 +348,7 @@ class Trainer:
                     val_cup_dice_otsu.append(th2_otsu_metric["dice"])
                     val_cup_iou_otsu.append(th2_otsu_metric["iou"])
                     val_cup_hausdorff_otsu.append(th2_otsu_metric["hausdorff"])
-                    val_cup_hausdorff95_otsu.append(th2_otsu_metric["hausdorff95"])
+                    val_cup_hausdorff95_otsu.append(th2_otsu_metric["hausdorff_95"])
 
                     mask = fundus_inv_map_mask(mask)
                     mean_x_start_binary_otsu = fundus_inv_map_mask(mean_x_start_binary_otsu)

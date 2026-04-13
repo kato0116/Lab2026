@@ -17,6 +17,27 @@ def set_seed(seed):
         torch.backends.cudnn.deterministic = True  # CuDNNの動作を固定
         torch.backends.cudnn.benchmark = False  # 再現性を優先
 
+def set_dataset(args):
+    if args.dataset == "REFUGE2_Crop":
+        print("Using REFUGE2_Crop dataset")
+        args.data_path = "/root/volume/dataset/REFUGE2_ver_crop_check"
+        args.center    = True
+        args.crop      = True
+        args.fold      = ""
+        args.mask_channels  = 3
+        args.vae_in_out_ch  = 3
+        args.vae_checkpoint = False
+        args.vae_path       = None
+
+    elif args.dataset == "REFUGE2":
+        args.data_path = "/root/volume/dataset/REFUGE2"  
+        args.fold = ""
+        args.mask_channels  = 3
+        args.vae_in_out_ch  = 3
+        args.vae_checkpoint = False
+        args.vae_path       = None
+    return args
+
 def set_name(args):
     
     if args.diffuser_type == None: # 拡散モデルではない場合
