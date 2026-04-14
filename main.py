@@ -2,7 +2,7 @@ from utils.diffusion_script_util import select_type
 import os
 import argparse
 import torch
-from utils import create_folder, get_dataset, create_model, set_seed, set_name, Trainer
+from utils import create_folder, get_dataset, create_model, set_seed, set_name, set_dataset, Trainer
 from torch.optim import AdamW
 import numpy as np
 import random
@@ -10,6 +10,7 @@ import random
 
 def main(args):
     set_seed(args.seed)        # シードを固定
+    args  = set_dataset(args)  # データセットの設定
     model = create_model(args) # モデルの作成
     args, dir_path = set_name(args)
     create_folder(dir_path)    # フォルダの作成
