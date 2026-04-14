@@ -46,6 +46,59 @@ def reverse_permut_np(permutation):
         reverse[permutation[i]] = i
     return reverse
 
+
+
+import numpy as np
+import numpy as np
+
+# 方向数に応じて使うコーナーが決まる
+# 1方向: TL のみ
+# 2方向: TL, BR
+# 3方向: TL, BR, TR
+# 4方向: TL, BR, TR, BL
+
+def raster_path(N, num_directions=4):
+    """
+    ラスタースキャンのパスを生成する。zigzag_path と同じインターフェース。
+    num_directions: 1〜4
+      1: TL のみ (左上→右下)
+      2: TL, BR
+      3: TL, BR, TR
+      4: TL, BR, TR, BL
+
+    Returns:
+        list of np.array, shape (N*N,)
+    """
+    assert 1 <= num_directions <= 4
+
+    CONFIGS = [
+        (1,  1),   # TL: 行↓, 列→
+        (-1, -1),  # BR: 行↑, 列←
+        (1,  -1),  # TR: 行↓, 列←
+        (-1,  1),  # BL: 行↑, 列→
+    ]
+
+    paths = []
+    for dir_row, dir_col in CONFIGS[:num_directions]:
+        row_range = range(N) if dir_row == 1 else range(N - 1, -1, -1)
+        col_range = range(N) if dir_col == 1 else range(N - 1, -1, -1)
+        path = []
+        for i in row_range:
+            for j in col_range:
+                path.append(i * N + j)
+        paths.append(np.array(path))
+
+    return paths
+# N = 4
+# paths = raster_path(N, num_directions=2)
+
+# for i, p in enumerate(paths):
+#     rev = reverse_permut_np(p)
+#     # p[rev[k]] == k が全kで成立するはず
+#     assert all(p[rev[k]] == k for k in range(N * N)), "逆変換ミス！"
+#     print(f"path {i}: OK")
+#     print(f"  path    : {p}")
+#     print(f"  reverse : {rev}")
 # from mamba_ssm import Mamba
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # x = torch.randn(1,4,32,32).to(device)

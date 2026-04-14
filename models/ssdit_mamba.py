@@ -5,7 +5,7 @@ import math
 from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
 from torch import nn
 from models.modules import CrossAttention
-from models.mamba_utils import zigzag_path, reverse_permut_np
+from models.mamba_utils import zigzag_path, raster_path, reverse_permut_np
 from models.ssdit import SSDiTBlock
 from mamba_ssm import Mamba, Mamba2
 
@@ -253,11 +253,11 @@ class SSDiM(nn.Module):
         self.y_diff_flag  = y_diff_flag
         
         # Mamba用
-        self.zigzag_num = int(scan_type.replace("zigzagN", ""))
         self.num_patches = (input_size // patch_size) ** 2
         patch_side_len = int(math.sqrt(self.num_patches))
         
         if scan_type.startswith("zigzagN") or scan_type.startswith("parallelN"):
+            self.zigzag_num = int(scan_type.replace("zigzagN", ""))
             _zz_paths = zigzag_path(N=patch_side_len)
             if scan_type.startswith("zigzagN"):
                 zigzag_num = int(scan_type.replace("zigzagN", ""))
@@ -267,6 +267,12 @@ class SSDiM(nn.Module):
                     ), f"{len(zz_paths)} != {zigzag_num}"
             elif scan_type.startswith("parallelN"):
                 zz_paths  = _zz_paths[:8]
+        elif  scan_type.startswith("rasterN"):
+            self.zigzag_num = int(scan_type.replace("rasterN", ""))
+            raster_num = int(scan_type.replace("rasterN", ""))
+            _raster_paths = raster_path(N=patch_side_len, num_directions=raster_num)
+            zz_paths = _raster_paths
+
         self.zz_paths     = zz_paths
         self.zz_paths_rev = [reverse_permut_np(_) for _ in zz_paths]
         
