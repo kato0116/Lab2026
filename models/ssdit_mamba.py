@@ -7,7 +7,7 @@ from torch import nn
 from models.modules import CrossAttention
 from models.mamba_utils import zigzag_path, reverse_permut_np
 from models.ssdit import SSDiTBlock
-from mamba_ssm import Mamba
+from mamba_ssm import Mamba, Mamba2
 
 def zero_module(module):
     """
@@ -147,12 +147,15 @@ class SSDiMBlock(nn.Module):
     """
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, skip=False, cross_attn=False,shared_step=True,zz_paths=None,zz_paths_rev=None, **block_kwargs):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, skip=False, cross_attn=False,shared_step=True,zz_paths=None,zz_paths_rev=None, use_mamba2=False,d_state=16,expand=1,  **block_kwargs):
         super().__init__()
         self.skip_linear = nn.Linear(2 * hidden_size, hidden_size) if skip else None
         self.norm1       = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         # self.attn        = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
-        self.mamba       = Mamba(d_model=hidden_size, d_state=16, d_conv=4, expand=1)
+        if use_mamba2:
+            self.mamba       = Mamba2(d_model=hidden_size, d_state=d_state, d_conv=4, expand=expand)
+        else:
+            self.mamba       = Mamba(d_model=hidden_size, d_state=d_state, d_conv=4, expand=expand) 
         self.cross_attn  = CrossAttention(hidden_size, hidden_size, num_heads=num_heads, qkv_bias=True, dropout=0.) if cross_attn else None
         self.norm2       = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim   = int(hidden_size * mlp_ratio)
@@ -235,6 +238,9 @@ class SSDiM(nn.Module):
         shared_step = True,
         y_diff_flag = False,
         scan_type="zigzagN8",
+        use_mamba2=False,
+        expand=1,
+        d_state=16
     ):
         super().__init__()
         self.learn_sigma  = learn_sigma
@@ -289,11 +295,11 @@ class SSDiM(nn.Module):
             self.adaLN_modulation = None
         
         self.encoder_blocks = nn.ModuleList([
-            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev) for _ in range(depth//2)
+            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2) for _ in range(depth//2)
         ])
-        self.middle_block = SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False,cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev)
+        self.middle_block = SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False,cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2)
         self.decoder_blocks = nn.ModuleList([
-            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=skip_flag, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev) for _ in range(depth//2)
+            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=skip_flag, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2) for _ in range(depth//2)
         ])
 
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)

@@ -20,7 +20,12 @@ def create_model(args):
             unet_hidden_size =args.unet_hidden_size,    # 64
             cross_attn_flag  =args.cross_attn_flag,     # False
             shared_step      =args.shared_step,         # False
-            )
+            
+            scan_type=args.scan_type,                   # "zigzagN8"
+            use_mamba2=args.use_mamba2,                 # False
+            expand=args.expand,                         # 1
+            d_state=args.d_state                        # 16
+        )
         
         # モデルのパラメータ数計測
         num_params = sum(p.numel() for p in model.parameters())

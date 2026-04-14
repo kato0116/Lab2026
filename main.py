@@ -123,6 +123,12 @@ if __name__ == '__main__':
     parser.add_argument('--cross_attn_flag', type=bool, default=False)  # cross attention
     parser.add_argument('--shared_step', type=bool, default=True)       # shared step
     parser.add_argument('--image_diff', type=bool, default=False) # 画像の差分を取るかどうか
+    
+    # Mambaの設定
+    parser.add_argument('--scan_type', type=str, default="zigzagN8") # zigzagN8 or raster
+    parser.add_argument('--use_mamba2', type=bool, default=False)    # Mamba2を使用するかどうか
+    parser.add_argument('--expand', type=int, default=1)             # Mambaのexpand
+    parser.add_argument('--d_state', type=int, default=16)           # Mambaのd_state
 
     # 拡散モデルの共通パラメータ
     parser.add_argument('--val_ensemble', type=int, default=5)     # アンサンブル数
