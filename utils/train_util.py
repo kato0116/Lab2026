@@ -604,6 +604,15 @@ class Trainer:
                     mean_x1_start_binary_otsu = (mean_x1_start > th1).float()
                     mean_x2_start_binary_otsu = (mean_x2_start > th2).float()
                     mean_x_start_binary_otsu = th.stack([mean_x0_start_binary_otsu, mean_x1_start_binary_otsu, mean_x2_start_binary_otsu], dim=1)
+                    
+                    th0 = threshold_otsu(staple_x_start[:,0].cpu().numpy())
+                    th1 = threshold_otsu(staple_x_start[:,1].cpu().numpy())
+                    th2 = threshold_otsu(staple_x_start[:,2].cpu().numpy())
+                    staple_x0_start_binary_otsu = (staple_x_start[:,0] > th0).float()
+                    staple_x1_start_binary_otsu = (staple_x_start[:,1] > th1).float()
+                    staple_x2_start_binary_otsu = (staple_x_start[:,2] > th2).float()
+                    staple_x_start_binary_otsu  = th.stack([staple_x0_start_binary_otsu, staple_x1_start_binary_otsu, staple_x2_start_binary_otsu], dim=1)
+                    
             else:
                 threshold = threshold_otsu(mean_x_start.cpu().numpy())
                 mean_x_start_binary_otsu = (mean_x_start > threshold).float()
