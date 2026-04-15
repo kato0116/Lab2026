@@ -782,6 +782,11 @@ class Trainer:
             "test_size":         args.test_size,
             "dir_path":          self.dir_path,
             "staple_flag":       self.staple_flag,
+            
+            "Mamba(scan_type)":         args.scan_type,
+            "Mamba(expand)":            args.expand,
+            "Mamba(d_state)":           args.d_state,
+            "Mamba(version)":           2 if args.use_mamba2 else 1,
         }
         tags = [args.dataset, args.cond, self.space,args.model_size]
         if args.diffuser_type == "rectified_flow":
