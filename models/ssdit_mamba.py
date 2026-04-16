@@ -147,7 +147,7 @@ class SSDiMBlock(nn.Module):
     """
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, skip=False, cross_attn=False,shared_step=True,zz_paths=None,zz_paths_rev=None, use_mamba2=False,d_state=16,expand=1,  **block_kwargs):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, skip=False, cross_attn=False,shared_step=True,zz_paths=None,zz_paths_rev=None, use_mamba2=False,d_state=16,expand=1,layer_id=None, **block_kwargs):
         super().__init__()
         self.skip_linear = nn.Linear(2 * hidden_size, hidden_size) if skip else None
         self.norm1       = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
@@ -163,6 +163,7 @@ class SSDiMBlock(nn.Module):
         self.mlp         = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim,out_features=hidden_size, act_layer=approx_gelu, drop=0)
         self.zz_paths     = zz_paths
         self.zz_paths_rev = zz_paths_rev
+        self.layer_id     = layer_id
         # 正規化パラメータの共有するかどうか
         if shared_step:
             self.adaLN_modulation = None
@@ -179,12 +180,17 @@ class SSDiMBlock(nn.Module):
         if self.skip_linear is not None:
             y = self.skip_linear(torch.cat([y, skip], dim=-1))
         tmp  = modulate(self.norm1(x), shift_msa, scale_msa)
-        tmp2 = torch.zeros_like(tmp)
-        for path, path_rev in zip(self.zz_paths, self.zz_paths_rev):
-            tmp1  = tmp[:, path, :]        # zigzag 順に並び替え
-            tmp1  = self.mamba(tmp1)       # Mamba処理
-            tmp2  += tmp1[:, path_rev, :]  # 元の順序に戻す
-        tmp2 = tmp2 / len(self.zz_paths)   # 平均化
+        path = self.zz_paths[self.layer_id % len(self.zz_paths)]
+        path_rev = self.zz_paths_rev[self.layer_id % len(self.zz_paths_rev)]
+        tmp1 = tmp[:, path, :]        # zigzag 順に並び替え
+        tmp1 = self.mamba(tmp1)       # Mamba処理
+        tmp2 = tmp1[:, path_rev, :]   # 元の順序に戻す
+        # tmp2 = torch.zeros_like(tmp)
+        # for path, path_rev in zip(self.zz_paths, self.zz_paths_rev):
+        #     tmp1  = tmp[:, path, :]        # zigzag 順に並び替え
+        #     tmp1  = self.mamba(tmp1)       # Mamba処理
+        #     tmp2  += tmp1[:, path_rev, :]  # 元の順序に戻す
+        # tmp2 = tmp2 / len(self.zz_paths)   # 平均化
         x = x + gate_msa.unsqueeze(1) * tmp2
         # 条件付け部
         if self.cross_attn is not None:
@@ -301,11 +307,12 @@ class SSDiM(nn.Module):
             self.adaLN_modulation = None
         
         self.encoder_blocks = nn.ModuleList([
-            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2) for _ in range(depth//2)
+            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2,layer_id=id) for id in range(depth//2)
         ])
-        self.middle_block = SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False,cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2)
+        id = depth//2
+        self.middle_block = SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=False,cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2,layer_id=id)
         self.decoder_blocks = nn.ModuleList([
-            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=skip_flag, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2) for _ in range(depth//2)
+            SSDiMBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio,skip=skip_flag, cross_attn=cross_attn_flag, shared_step=shared_step, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev,d_state=d_state, expand=expand, use_mamba2=use_mamba2,layer_id=id+i) for i in range(1,depth//2)
         ])
 
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
