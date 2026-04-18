@@ -2,7 +2,7 @@ from torch import nn, einsum
 from einops import rearrange
 import torch
 import torch.utils.checkpoint as checkpoint
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_
 
 # 参考: https://github.com/CompVis/latent-diffusion/blob/main/ldm/modules/attention.py
 class CrossAttention(nn.Module):
@@ -471,6 +471,46 @@ class PatchMerging(nn.Module):
         flops = H * W * self.dim
         flops += (H // 2) * (W // 2) * 4 * self.dim * 2 * self.dim
         return flops
+
+class PatchExpand(nn.Module):
+    def __init__(self, input_resolution, dim, dim_scale=2, norm_layer=nn.LayerNorm):
+        super().__init__()
+        self.input_resolution = input_resolution
+        self.dim = dim
+        self.expand = nn.Linear(dim, 2 * dim, bias=False) if dim_scale == 2 else nn.Identity()
+        self.norm = norm_layer(dim // dim_scale)
+
+    def forward(self, x):
+        """
+        x: B, H*W, C
+        """
+        H, W = self.input_resolution
+        x = self.expand(x)
+        B, L, C = x.shape
+        assert L == H * W, "input feature has wrong size"
+
+        x = x.view(B, H, W, C)
+        x = rearrange(x, 'b h w (p1 p2 c)-> b (h p1) (w p2) c', p1=2, p2=2, c=C // 4)
+        x = x.view(B, -1, C // 4)
+        x = self.norm(x)
+
+        return x
+
+
+# x = torch.randn(1, 3, 16, 16)  # B,C,H,W
+# patch_emb = nn.Conv2d(3, 96, kernel_size=1, stride=1)  # patch embedding
+# x = patch_emb(x)  # B,96,H/4,W/4
+# x = x.flatten(2).transpose(1, 2)  # B, H/4*W/4, 96
+
+# patch_merge = PatchMerging(input_resolution=(4, 4), dim=96)
+# x = patch_merge(x)  # B, H/8*W/8, 192
+# x = x.view(1, 2, 2, 192).permute(0, 3, 1, 2)  # B,C,H,W
+# print(x.shape) # 画像サイズに戻す
+# patch_expand = PatchExpand(input_resolution=(2, 2), dim=192)
+# x = patch_expand(x)  # B, H/4*W/4, 96
+# x = x.view(1, 2, 2, 96).permute(0, 3, 1, 2)  # B,C,H,W
+# print(x.shape)
+
 
 class BasicLayer(nn.Module):
     """ A basic Swin Transformer layer for one stage.
