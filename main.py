@@ -2,7 +2,7 @@ from utils.diffusion_script_util import select_type
 import os
 import argparse
 import torch
-from utils import create_folder, get_dataset, create_model, set_seed, set_name, set_dataset, Trainer
+from utils import create_folder, get_dataset, create_model, set_seed, set_name, set_dataset, Trainer, nodiff_Trainer
 from torch.optim import AdamW
 import numpy as np
 import random
@@ -49,21 +49,47 @@ def main(args):
     print(f"Learning Rate: {args.lr}, Epochs: {args.epochs}, Global Batch Size: {args.global_batch_size}, Microbatch: {args.microbatch}")
     print("----------------------------------")
     
-    trainer = Trainer(
-        model           =model,
-        diffuser        =diffuser,
-        optimizer       =optimizer,
-        train_set       =train_set,
-        val_set         =val_set,
-        test_set        =test_set,
-        args            =args,
-        dir_path        =dir_path,
-        scheduler       =scheduler,
-        space           =args.space,
-        parameter_num   =para,
-        trainable_param =trainable_param,
-        multi_gpu       =args.multi_gpu,
-    )
+    train_kwargs = {
+        "model": model,
+        "diffuser": diffuser,
+        "optimizer": optimizer,
+        "train_set": train_set,
+        "val_set": val_set,
+        "test_set": test_set,
+        "args": args,
+        "dir_path": dir_path,
+        "scheduler": scheduler,
+        "space": args.space,
+        "parameter_num": para,
+        "trainable_param": trainable_param,
+        "multi_gpu": args.multi_gpu
+    }
+    if args.diffuser_type == None:
+        def loss_function(pred, target):
+            # MSE Lossを計算
+            mse_loss = torch.mean((pred - target) ** 2)
+            return mse_loss
+        train_kwargs.update({
+            "loss_function": loss_function
+        })
+        trainer = nodiff_Trainer(**train_kwargs)
+    else:
+        trainer = Trainer(**train_kwargs)
+    # trainer = Trainer(
+    #     model           =model,
+    #     diffuser        =diffuser,
+    #     optimizer       =optimizer,
+    #     train_set       =train_set,
+    #     val_set         =val_set,
+    #     test_set        =test_set,
+    #     args            =args,
+    #     dir_path        =dir_path,
+    #     scheduler       =scheduler,
+    #     space           =args.space,
+    #     parameter_num   =para,
+    #     trainable_param =trainable_param,
+    #     multi_gpu       =args.multi_gpu,
+    # )
     trainer.train_loop(args)
     trainer.test_loop(model, args)
     
