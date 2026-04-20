@@ -67,7 +67,8 @@ def create_model(args):
             
             use_mamba2=args.use_mamba2,                 # False
             expand=args.expand,                         # 1
-            d_state=args.d_state  
+            d_state=args.d_state,
+            num_blocks=args.num_blocks,                 # 2
         )
         
     # elif args.model_name =="ssdit":
