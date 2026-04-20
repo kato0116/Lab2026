@@ -59,7 +59,7 @@ class MambaBlock(nn.Module):
         path = self.zz_paths[self.layer_id % len(self.zz_paths)]
         path_rev = self.zz_paths_rev[self.layer_id % len(self.zz_paths_rev)]
         tmp1 = tmp[:, path, :]        # zigzag 順に並び替え
-        tmp1 = self.mamba(tmp1)       # Mamba処理
+        tmp1 = self.mamba(self.norm1(tmp1))       # Mamba処理
         tmp2 = tmp1[:, path_rev, :]   # 元の順序に戻す
         x = x + tmp2
         x = x + self.mlp(self.norm2(x)) 
