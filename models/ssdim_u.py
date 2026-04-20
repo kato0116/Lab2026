@@ -68,8 +68,8 @@ class MambaBlock(nn.Module):
 class MambaDownBlock(nn.Module):
     def __init__(self, input_size, patch_size, hidden_dim, num_blocks=2, scan_type="zigzagN8", **kwargs):
         super().__init__()
-        self.downsample = PatchMerging((input_size, input_size), hidden_dim)
-        zz_paths, zz_paths_rev = create_path(input_size, patch_size, scan_type=scan_type)
+        self.downsample = PatchMerging((input_size//patch_size, input_size//patch_size), hidden_dim)
+        zz_paths, zz_paths_rev = create_path(input_size//2, patch_size, scan_type=scan_type)
         
         self.blocks = nn.ModuleList([
             MambaBlock(hidden_dim*2, **kwargs,zz_paths=zz_paths, zz_paths_rev=zz_paths_rev, layer_id=i) for i in range(num_blocks)
@@ -84,8 +84,8 @@ class MambaDownBlock(nn.Module):
 class MambaUpBlock(nn.Module):
     def __init__(self, input_size, patch_size, hidden_dim, num_blocks=2, scan_type="zigzagN8", **kwargs):
         super().__init__()
+        self.upsample = PatchExpand((input_size//patch_size, input_size//patch_size), hidden_dim*2)
         zz_paths, zz_paths_rev = create_path(input_size*2, patch_size, scan_type=scan_type)
-        self.upsample = PatchExpand((input_size//2, input_size//2), hidden_dim*2)
         self.conv1d   = nn.Conv1d(hidden_dim*2, hidden_dim, kernel_size=1)  # skip connection で結合した後の次元を調整するための1x1畳み込み
         self.blocks = nn.ModuleList([
             MambaBlock(hidden_dim, **kwargs, zz_paths=zz_paths, zz_paths_rev=zz_paths_rev, layer_id=i) for i in range(num_blocks)
@@ -101,16 +101,15 @@ class MambaUpBlock(nn.Module):
         return x
 
 class MambaEncoder(nn.Module):
-    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8", **kwargs):
+    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8",num_blocks=2, **kwargs):
         super().__init__()
-        
         self.zz_paths, self.zz_paths_rev = create_path(input_size, patch_size, scan_type)
         self.enc1 = nn.ModuleList([
-            MambaBlock(hidden_size, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(2)
+            MambaBlock(hidden_size, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(num_blocks)
         ])
-        self.down1 = MambaDownBlock(input_size//2, patch_size, hidden_size, num_blocks=2, **kwargs)    # input_size//2 => input_size//4
-        self.down2 = MambaDownBlock(input_size//4, patch_size, hidden_size*2, num_blocks=2, **kwargs)  # input_size//4 ⇒ input_size//8
-        self.down3 = MambaDownBlock(input_size//8, patch_size, hidden_size*4, num_blocks=2, **kwargs)  # input_size//8 ⇒ input_size//16
+        self.down1 = MambaDownBlock(input_size, patch_size, hidden_size, num_blocks=num_blocks, **kwargs)    # input_size//2 => input_size//4
+        self.down2 = MambaDownBlock(input_size//2, patch_size, hidden_size*2, num_blocks=num_blocks, **kwargs)  # input_size//4 ⇒ input_size//8
+        self.down3 = MambaDownBlock(input_size//4, patch_size, hidden_size*4, num_blocks=num_blocks, **kwargs)  # input_size//8 ⇒ input_size//16
         
     def forward(self, x):
         for block in self.enc1:
@@ -122,14 +121,14 @@ class MambaEncoder(nn.Module):
         return x, [x1, x2, x3]
 
 class MambaDecoder(nn.Module):
-    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8", **kwargs):
+    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8", num_blocks=2, **kwargs):
         super().__init__()
         self.zz_paths, self.zz_paths_rev = create_path(input_size, patch_size, scan_type)
-        self.up3 = MambaUpBlock(input_size//8, patch_size, hidden_size*4, num_blocks=2, **kwargs)  # input_size//16 ⇒ input_size//8
-        self.up2 = MambaUpBlock(input_size//4, patch_size, hidden_size*2, num_blocks=2, **kwargs)  # input_size//8 ⇒ input_size//4
-        self.up1 = MambaUpBlock(input_size//2, patch_size, hidden_size, num_blocks=2, **kwargs)    # input_size//4 ⇒ input_size//2
+        self.up3 = MambaUpBlock((input_size//8), patch_size, hidden_size*4, num_blocks=num_blocks, **kwargs)  # input_size//16 ⇒ input_size//8
+        self.up2 = MambaUpBlock((input_size//4), patch_size, hidden_size*2, num_blocks=num_blocks, **kwargs)  # input_size//8 ⇒ input_size//4
+        self.up1 = MambaUpBlock((input_size//2), patch_size, hidden_size, num_blocks=num_blocks, **kwargs)    # input_size//4 ⇒ input_size//2
         self.dec1 = nn.ModuleList([
-            MambaBlock(hidden_size, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(2)
+            MambaBlock(hidden_size, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(num_blocks)
         ])
     
     def forward(self, x, skips):
@@ -141,23 +140,31 @@ class MambaDecoder(nn.Module):
         return x
 
 class UMamba(nn.Module):
-    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8",in_channels=2, out_channels=2, **kwargs):
+    def __init__(self, input_size, patch_size, hidden_size, num_heads, mlp_ratio=4.0, scan_type="zigzagN8",in_channels=2, out_channels=2, num_blocks=2, **kwargs):
         super().__init__()
-        self.patch_emb = PatchEmbed(img_size=input_size, patch_size=2, in_chans=in_channels, embed_dim=64, bias=True)
+        self.patch_emb = PatchEmbed(img_size=input_size, patch_size=patch_size, in_chans=in_channels, embed_dim=hidden_size, bias=True)
         num_patches = self.patch_emb.num_patches
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, hidden_size), requires_grad=False)
         self.out_channels = out_channels
-        self.encoder = MambaEncoder(input_size, patch_size, hidden_size, num_heads, mlp_ratio, scan_type, **kwargs)
-        self.zz_paths, self.zz_paths_rev = create_path(input_size//8, patch_size, scan_type)
+        self.encoder = MambaEncoder(input_size, patch_size, hidden_size, num_heads, mlp_ratio, scan_type, num_blocks=num_blocks, **kwargs)
+        self.zz_paths, self.zz_paths_rev = create_path((input_size//8), patch_size, scan_type)
         self.bottle = nn.ModuleList([
-            MambaBlock(hidden_size*8, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(2)
+            MambaBlock(hidden_size*8, num_heads=num_heads, mlp_ratio=mlp_ratio, skip=False, zz_paths=self.zz_paths, zz_paths_rev=self.zz_paths_rev, layer_id=id) for id in range(num_blocks)
         ])
-        self.decoder = MambaDecoder(input_size, patch_size, hidden_size, num_heads, mlp_ratio, scan_type, **kwargs)
+        self.decoder = MambaDecoder(input_size, patch_size, hidden_size, num_heads, mlp_ratio, scan_type, num_blocks=num_blocks, **kwargs)
         self.final_layer = nn.Linear(hidden_size, patch_size**2 * out_channels, bias=True)
         self.final_conv  = nn.Conv2d(out_channels, out_channels, kernel_size=1)  # パッチ化された出力を画像に変換するための1x1畳み込み
         self.initialize_weights()
         
     def initialize_weights(self):
+        # Initialize transformer layers:
+        def _basic_init(module):
+            if isinstance(module, nn.Linear):
+                torch.nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+        self.apply(_basic_init)
+
         # Initialize (and freeze) pos_embed by sin-cos embedding:
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.patch_emb.num_patches ** 0.5))
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
