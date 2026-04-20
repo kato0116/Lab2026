@@ -73,7 +73,8 @@ def load_model(model,model_path):
     state_dict = torch.load(model_path)
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        if 'module.' in k:
+        # if 'module.' in k: # 修正前
+        if k.startswith('module.'): # 修正後
             new_state_dict[k[7:]] = v  # 'module.' を取り除いて新しい辞書に追加
         else:
             new_state_dict[k] = v  # 'module.' が含まれていない場合、そのまま新しい辞書に追加
