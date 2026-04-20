@@ -567,6 +567,7 @@ class Trainer:
             "Mamba(expand)":            args.expand,
             "Mamba(d_state)":           args.d_state,
             "Mamba(version)":           2 if args.use_mamba2 else 1,
+            "Mamba(num_block)":         args.mamba_num_block,
         }
         tags = [args.dataset, args.cond, self.space,args.model_size]
 
