@@ -53,6 +53,22 @@ def create_model(args):
         # メモリ解放
         del dummy_x, dummy_t, dummy_cond, out
         torch.cuda.empty_cache()
+    elif "umamba" in args.model_name:
+        from models.ssdim_u import UMamba
+        model = UMamba(
+            input_size = args.img_size,
+            patch_size = args.patch_size,
+            hidden_size=args.unet_hidden_size,
+            num_heads=None,
+            mlp_ratio=4.0,
+            scan_type=args.scan_type,
+            in_channels=args.img_channels,
+            out_channels=args.mask_channels,
+            
+            use_mamba2=args.use_mamba2,                 # False
+            expand=args.expand,                         # 1
+            d_state=args.d_state  
+        )
         
     # elif args.model_name =="ssdit":
     elif "ssdit" in args.model_name:
