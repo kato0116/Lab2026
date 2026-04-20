@@ -23,6 +23,7 @@ def main(args):
     
     if args.diffuser_type == None: # 拡散モデルではない場合
         diffuser = None
+        args.space = "pixel"
     else:
         diffuser  = select_type(args.diffuser_type, args) # 拡散モデルの選択
     optimizer = AdamW(model.parameters(), lr=args.lr)     # 最適化手法
