@@ -24,6 +24,7 @@ def main(args):
     if args.diffuser_type == None: # 拡散モデルではない場合
         diffuser = None
         args.space = "pixel"
+        args.epochs = 300
     else:
         diffuser  = select_type(args.diffuser_type, args) # 拡散モデルの選択
     optimizer = AdamW(model.parameters(), lr=args.lr)     # 最適化手法
@@ -155,8 +156,9 @@ if __name__ == '__main__':
     # Mambaの設定
     parser.add_argument('--scan_type', type=str, default="zigzagN8") # zigzagN8 or rasterN2 or rasterN4
     parser.add_argument('--use_mamba2', type=bool, default=False)    # Mamba2を使用するかどうか
-    parser.add_argument('--expand', type=int, default=1)             # Mambaのexpand
+    parser.add_argument('--expand', type=int, default=2)             # Mambaのexpand
     parser.add_argument('--d_state', type=int, default=16)           # Mambaのd_state
+    parser.add_argument('--num_blocks', type=int, default=2)        # MambaBlockの数
 
     # 拡散モデルの共通パラメータ
     parser.add_argument('--val_ensemble', type=int, default=5)     # アンサンブル数
