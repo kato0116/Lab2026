@@ -24,7 +24,6 @@ def main(args):
     if args.diffuser_type == None: # 拡散モデルではない場合
         diffuser = None
         args.space = "pixel"
-        args.epochs = 300
     else:
         diffuser  = select_type(args.diffuser_type, args) # 拡散モデルの選択
     optimizer = AdamW(model.parameters(), lr=args.lr)     # 最適化手法
@@ -66,7 +65,7 @@ def main(args):
         "trainable_param": trainable_param,
         "multi_gpu": args.multi_gpu
     }
-    if args.diffuser_type == None:
+    if args.diffuser_type == "None":
         def loss_function(pred, target):
             # MSE Lossを計算
             mse_loss = torch.mean((pred - target) ** 2)
