@@ -103,6 +103,29 @@ def create_model(args):
             unet_hidden_size=128,
             time_embed_dim=256,
         )
+    elif args.model_name == "unet":
+        from monai.networks.nets import UNet
+        model = UNet(
+            spatial_dims=2,
+            in_channels=args.img_channels,          # RGB画像なら3、グレーなら1
+            out_channels=args.mask_channels,          # 背景 + 前景
+            channels=(32, 64, 128, 256),
+            strides=(2, 2, 2),        # len = len(channels)-1
+            num_res_units=2,          # 0でシンプルなconv×2
+            norm="batch",             # batch / instance / group
+            act="relu",               # relu / leakyrelu / prelu
+            dropout=0.1,
+        )
+    elif args.model_name == "swinunetr":
+        from monai.networks.nets import SwinUNETR
+        model = SwinUNETR(
+            in_channels=args.img_channels,
+            out_channels=args.mask_channels,
+            feature_size=24,       # 12の倍数であること（ソース内でチェックあり）
+            spatial_dims=2,
+            patch_size=2,          # デフォルト2。入力は 2**5=32 の倍数が必要
+            use_checkpoint=True,
+        )
     else:
         raise NotImplementedError(f"Model {args.model_name} is not implemented.")
     return model
